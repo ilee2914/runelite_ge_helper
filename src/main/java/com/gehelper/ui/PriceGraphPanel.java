@@ -7,6 +7,8 @@ import net.runelite.client.ui.FontManager;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Path2D;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -41,12 +43,34 @@ public class PriceGraphPanel extends JPanel
 	@Setter
 	private boolean showTitle = true;
 
+	private Point hoveredPoint = null;
+
 	public PriceGraphPanel()
 	{
 		setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		setPreferredSize(new Dimension(0, 140));
 		setMinimumSize(new Dimension(100, 100));
 		setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
+
+		addMouseMotionListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseMoved(MouseEvent e)
+			{
+				hoveredPoint = e.getPoint();
+				repaint();
+			}
+		});
+
+		addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseExited(MouseEvent e)
+			{
+				hoveredPoint = null;
+				repaint();
+			}
+		});
 	}
 
 	@Override
@@ -175,6 +199,69 @@ public class PriceGraphPanel extends JPanel
 			g2.setColor(SELL_COLOR);
 			g2.fillRect(graphX + graphW - 48, legendY - 6, 7, 7);
 			g2.drawString("Sell", graphX + graphW - 38, legendY);
+		}
+
+		// Hover tooltip
+		if (hoveredPoint != null && data.size() > 1 && graphW > 0)
+		{
+			// Check if mouse is near the graph horizontally
+			if (hoveredPoint.x >= graphX - 10 && hoveredPoint.x <= graphX + graphW + 10)
+			{
+				int closestIdx = (int) Math.round((double)(hoveredPoint.x - graphX) / graphW * (data.size() - 1));
+				closestIdx = Math.max(0, Math.min(closestIdx, data.size() - 1));
+
+				TimeseriesEntry entry = data.get(closestIdx);
+				int pointX = graphX + (int) ((double) closestIdx / (data.size() - 1) * graphW);
+
+				// Draw vertical bar marker
+				g2.setColor(new Color(255, 255, 255, 60));
+				g2.drawLine(pointX, graphY, pointX, graphY + graphH);
+
+				// Resolve data
+				LocalDateTime dt = LocalDateTime.ofInstant(Instant.ofEpochSecond(entry.getTimestamp()), ZoneId.systemDefault());
+				String timeStr = dt.format(TIME_FMT);
+				String buyStr = entry.getAvgHighPrice() != null ? formatPrice(entry.getAvgHighPrice()) : "-";
+				String sellStr = entry.getAvgLowPrice() != null ? formatPrice(entry.getAvgLowPrice()) : "-";
+
+				String[] lines = { timeStr, "B: " + buyStr, "S: " + sellStr };
+
+				// Dimensions
+				g2.setFont(FontManager.getRunescapeSmallFont());
+				FontMetrics ttFm = g2.getFontMetrics();
+				int maxW = 40;
+				for (String line : lines) maxW = Math.max(maxW, ttFm.stringWidth(line));
+				int boxW = maxW + 10;
+				int boxH = 4 + lines.length * ttFm.getHeight();
+
+				int boxX = pointX + 8;
+				if (boxX + boxW > getWidth() - RIGHT_PADDING)
+				{
+					boxX = pointX - boxW - 8;
+				}
+				int boxY = hoveredPoint.y - boxH - 5;
+				if (boxY < TOP_PADDING)
+				{
+					boxY = hoveredPoint.y + 15;
+				}
+
+				// Background
+				g2.setColor(new Color(40, 40, 40, 230));
+				g2.fillRect(boxX, boxY, boxW, boxH);
+				g2.setColor(new Color(100, 100, 100));
+				g2.drawRect(boxX, boxY, boxW, boxH);
+
+				// Text
+				int textY = boxY + 2 + ttFm.getAscent();
+				for (int i = 0; i < lines.length; i++)
+				{
+					if (i == 1) g2.setColor(BUY_COLOR);
+					else if (i == 2) g2.setColor(SELL_COLOR);
+					else g2.setColor(Color.WHITE);
+
+					g2.drawString(lines[i], boxX + 5, textY);
+					textY += ttFm.getHeight();
+				}
+			}
 		}
 	}
 
