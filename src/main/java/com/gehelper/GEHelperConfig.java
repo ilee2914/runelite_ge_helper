@@ -17,15 +17,6 @@ public interface GEHelperConfig extends Config
 		return true;
 	}
 
-	@ConfigItem(
-		keyName = "graphTimestep",
-		name = "Graph Interval",
-		description = "Time interval for the price graph (5m, 1h, 6h, 24h)"
-	)
-	default String graphTimestep()
-	{
-		return "1h";
-	}
 
 	@ConfigItem(
 		keyName = "showGraphLegend",

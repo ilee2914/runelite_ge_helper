@@ -168,20 +168,27 @@ public class GEHelperPanel extends PluginPanel
 	{
 		for (OfferPanel panel : offerPanels)
 		{
-			final int itemId = panel.getItemId();
-			executor.submit(() ->
-			{
-				try
-				{
-					List<TimeseriesEntry> timeseries = priceClient.fetchTimeseries(itemId, config.graphTimestep());
-					SwingUtilities.invokeLater(() -> panel.updateTimeseries(timeseries));
-				}
-				catch (Exception e)
-				{
-					log.error("Failed to fetch timeseries for item {}", itemId, e);
-				}
-			});
+			refreshTimeseries(panel.getItemId(), panel);
 		}
+	}
+
+	/**
+	 * Fetch and update timeseries graph for a specific offer panel based on its selected timeframe.
+	 */
+	private void refreshTimeseries(int itemId, OfferPanel panel)
+	{
+		executor.submit(() ->
+		{
+			try
+			{
+				List<TimeseriesEntry> timeseries = priceClient.fetchTimeseries(itemId, panel.getTimestep());
+				SwingUtilities.invokeLater(() -> panel.updateTimeseries(timeseries));
+			}
+			catch (Exception e)
+			{
+				log.error("Failed to fetch timeseries for item {}", itemId, e);
+			}
+		});
 	}
 
 	private void rebuildOffersList()
@@ -197,10 +204,13 @@ public class GEHelperPanel extends PluginPanel
 		{
 			for (OfferInfo info : activeOffers.values())
 			{
-				OfferPanel panel = new OfferPanel(
+				OfferPanel[] panelHolder = new OfferPanel[1];
+				panelHolder[0] = new OfferPanel(
 					info.itemId, info.itemName, info.isBuy,
-					info.totalQuantity, info.quantityFilled, info.price, config, itemManager
+					info.totalQuantity, info.quantityFilled, info.price, config, itemManager,
+					() -> refreshTimeseries(info.itemId, panelHolder[0])
 				);
+				OfferPanel panel = panelHolder[0];
 
 				// Apply any cached wiki price immediately
 				PriceData cached = priceClient.getPrice(info.itemId);

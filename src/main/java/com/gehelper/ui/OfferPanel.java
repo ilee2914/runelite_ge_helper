@@ -38,8 +38,11 @@ public class OfferPanel extends JPanel
 	private final JLabel wikiPriceLabel;
 	private final PriceGraphPanel graphPanel;
 
+	private String currentTimestep = "5m";
+	private JLabel label1D, label7D, label30D;
+
 	public OfferPanel(int itemId, String itemName, boolean isBuy, int totalQuantity, int quantityFilled, int price,
-					  GEHelperConfig config, ItemManager itemManager)
+					  GEHelperConfig config, ItemManager itemManager, Runnable onTimeframeChange)
 	{
 		this.itemId = itemId;
 		this.itemName = itemName;
@@ -115,7 +118,7 @@ public class OfferPanel extends JPanel
 		infoPanel.add(Box.createVerticalStrut(3));
 		infoPanel.add(priceRow);
 
-		// Graph header: "Price History" label + wiki link on the same line
+		// Graph header: "Price History" label + timeframes + wiki link
 		JPanel graphHeader = new JPanel(new BorderLayout());
 		graphHeader.setOpaque(false);
 
@@ -123,6 +126,18 @@ public class OfferPanel extends JPanel
 		priceHistoryLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		priceHistoryLabel.setFont(FontManager.getRunescapeSmallFont());
 		graphHeader.add(priceHistoryLabel, BorderLayout.WEST);
+
+		JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+		rightHeader.setOpaque(false);
+
+		label1D = createTimeframeLabel("1D", "5m", onTimeframeChange);
+		label7D = createTimeframeLabel("7D", "1h", onTimeframeChange);
+		label30D = createTimeframeLabel("30D", "6h", onTimeframeChange);
+		updateTimeframeLabels();
+
+		rightHeader.add(label1D);
+		rightHeader.add(label7D);
+		rightHeader.add(label30D);
 
 		JLabel wikiLink = new JLabel("<html><u>Wiki</u></html>");
 		wikiLink.setForeground(new Color(100, 149, 237));
@@ -136,7 +151,8 @@ public class OfferPanel extends JPanel
 				LinkBrowser.browse("https://prices.runescape.wiki/osrs/item/" + itemId);
 			}
 		});
-		graphHeader.add(wikiLink, BorderLayout.EAST);
+		rightHeader.add(wikiLink);
+		graphHeader.add(rightHeader, BorderLayout.EAST);
 
 		// Inline price graph (title drawn externally now)
 		graphPanel = new PriceGraphPanel();
@@ -214,5 +230,48 @@ public class OfferPanel extends JPanel
 	{
 		graphPanel.setData(timeseries);
 		graphPanel.repaint();
+	}
+
+	public String getTimestep()
+	{
+		return currentTimestep;
+	}
+
+	private JLabel createTimeframeLabel(String text, String timestep, Runnable onChange)
+	{
+		JLabel label = new JLabel(text);
+		label.setFont(FontManager.getRunescapeSmallFont());
+		label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		label.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				if (!currentTimestep.equals(timestep))
+				{
+					currentTimestep = timestep;
+					updateTimeframeLabels();
+					if (onChange != null) onChange.run();
+				}
+			}
+			@Override
+			public void mouseEntered(MouseEvent e)
+			{
+				label.setForeground(Color.WHITE);
+			}
+			@Override
+			public void mouseExited(MouseEvent e)
+			{
+				updateTimeframeLabels();
+			}
+		});
+		return label;
+	}
+
+	private void updateTimeframeLabels()
+	{
+		if (label1D != null) label1D.setForeground("5m".equals(currentTimestep) ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
+		if (label7D != null) label7D.setForeground("1h".equals(currentTimestep) ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
+		if (label30D != null) label30D.setForeground("6h".equals(currentTimestep) ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
 	}
 }
