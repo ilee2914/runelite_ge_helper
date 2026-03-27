@@ -30,6 +30,7 @@ public class PriceGraphPanel extends JPanel
 	private static final Color GRID_COLOR = new Color(60, 60, 60);
 	private static final Color AXIS_COLOR = new Color(180, 180, 180);
 	private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+	private static final DateTimeFormatter TOOLTIP_TIME_FMT = DateTimeFormatter.ofPattern("MMM d, HH:mm");
 
 	@Setter
 	private List<TimeseriesEntry> data;
@@ -219,7 +220,7 @@ public class PriceGraphPanel extends JPanel
 
 				// Resolve data
 				LocalDateTime dt = LocalDateTime.ofInstant(Instant.ofEpochSecond(entry.getTimestamp()), ZoneId.systemDefault());
-				String timeStr = dt.format(TIME_FMT);
+				String timeStr = dt.format(TOOLTIP_TIME_FMT);
 				String buyStr = entry.getAvgHighPrice() != null ? formatPrice(entry.getAvgHighPrice()) : "-";
 				String sellStr = entry.getAvgLowPrice() != null ? formatPrice(entry.getAvgLowPrice()) : "-";
 
