@@ -1,6 +1,14 @@
 # GE Helper - RuneLite Plugin
 
 A comprehensive Grand Exchange price tracking and monitoring tool for RuneLite, featuring real-time data from the OSRS Wiki Prices API.
+## Screenshots
+
+<p align="center">
+  <img src="docs/ge_overlay.png" width="500" alt="GE Helper Overlay" />
+</p>
+<p align="center">
+  <img src="docs/sidebar.png" width="250" alt="GE Helper Sidebar" />
+</p>
 
 ## Features
 
