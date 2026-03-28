@@ -30,6 +30,7 @@ public class PriceGraphPanel extends JPanel
 	private static final Color GRID_COLOR = new Color(60, 60, 60);
 	private static final Color AXIS_COLOR = new Color(180, 180, 180);
 	private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+	private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("MMM d");
 	private static final DateTimeFormatter TOOLTIP_TIME_FMT = DateTimeFormatter.ofPattern("MMM d, HH:mm");
 
 	@Setter
@@ -164,6 +165,13 @@ public class PriceGraphPanel extends JPanel
 		// Draw time labels (max 3 to avoid crowding)
 		if (data.size() > 1)
 		{
+			long firstTs = data.get(0).getTimestamp();
+			long lastTs = data.get(data.size() - 1).getTimestamp();
+			long durationSeconds = lastTs - firstTs;
+			
+			// If spanning more than 25 hours, show the date instead of the time to avoid cramping
+			DateTimeFormatter axisTimeFmt = (durationSeconds > 90000) ? DATE_FMT : TIME_FMT;
+
 			int numTimeLabels = Math.min(3, data.size());
 			for (int i = 0; i < numTimeLabels; i++)
 			{
@@ -172,7 +180,7 @@ public class PriceGraphPanel extends JPanel
 				int x = graphX + (int) ((double) idx / (data.size() - 1) * graphW);
 				long ts = data.get(idx).getTimestamp();
 				LocalDateTime dt = LocalDateTime.ofInstant(Instant.ofEpochSecond(ts), ZoneId.systemDefault());
-				String timeLabel = dt.format(TIME_FMT);
+				String timeLabel = dt.format(axisTimeFmt);
 
 				// Clamp so labels don't overflow left/right edges
 				int labelX = x - fm.stringWidth(timeLabel) / 2;
