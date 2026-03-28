@@ -7,9 +7,12 @@ import com.gehelper.WikiPriceClient;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.GrandExchangeOfferState;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.config.ConfigManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
+import net.runelite.client.ui.components.materialtabs.MaterialTab;
+import net.runelite.client.ui.components.materialtabs.MaterialTabGroup;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -38,14 +41,18 @@ public class GEHelperPanel extends PluginPanel
 	private final Map<Integer, OfferInfo> activeOffers = new LinkedHashMap<>();
 	private final List<OfferPanel> offerPanels = new ArrayList<>();
 
+	private final SearchPanel searchPanel;
+	private final ConfigManager configManager;
+
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-	public GEHelperPanel(WikiPriceClient priceClient, GEHelperConfig config, ItemManager itemManager)
+	public GEHelperPanel(WikiPriceClient priceClient, GEHelperConfig config, ItemManager itemManager, ConfigManager configManager)
 	{
 		super(false);
 		this.priceClient = priceClient;
 		this.config = config;
 		this.itemManager = itemManager;
+		this.configManager = configManager;
 
 		setLayout(new BorderLayout());
 		setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -75,7 +82,21 @@ public class GEHelperPanel extends PluginPanel
 		});
 		header.add(refreshBtn, BorderLayout.EAST);
 
-		// Offers list
+		// Top container holding header and tabs
+		JPanel topContainer = new JPanel(new BorderLayout());
+		topContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		topContainer.add(header, BorderLayout.NORTH);
+
+		// Tab Group
+		JPanel displayPanel = new JPanel(new BorderLayout());
+		displayPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+		MaterialTabGroup tabGroup = new MaterialTabGroup(displayPanel);
+
+		// Offers view UI
+		JPanel offersView = new JPanel(new BorderLayout());
+		offersView.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
 		offersPanel = new JPanel();
 		offersPanel.setLayout(new BoxLayout(offersPanel, BoxLayout.Y_AXIS));
 		offersPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -86,14 +107,32 @@ public class GEHelperPanel extends PluginPanel
 		statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
 		statusLabel.setBorder(new EmptyBorder(20, 0, 20, 0));
 
-		JScrollPane scrollPane = new JScrollPane(offersPanel);
+		JPanel offersWrapper = new JPanel(new BorderLayout());
+		offersWrapper.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		offersWrapper.add(offersPanel, BorderLayout.NORTH);
+
+		JScrollPane scrollPane = new JScrollPane(offersWrapper);
 		scrollPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		scrollPane.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
 		scrollPane.setBorder(null);
 		scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
-		add(header, BorderLayout.NORTH);
-		add(scrollPane, BorderLayout.CENTER);
+		offersView.add(scrollPane, BorderLayout.CENTER);
+
+		MaterialTab offersTab = new MaterialTab("Offers", tabGroup, offersView);
+
+		// Search view UI
+		searchPanel = new SearchPanel(priceClient, config, itemManager, configManager);
+		MaterialTab searchTab = new MaterialTab("Search", tabGroup, searchPanel);
+
+		tabGroup.addTab(offersTab);
+		tabGroup.addTab(searchTab);
+		tabGroup.select(offersTab);
+
+		topContainer.add(tabGroup, BorderLayout.SOUTH);
+
+		add(topContainer, BorderLayout.NORTH);
+		add(displayPanel, BorderLayout.CENTER);
 
 		rebuildOffersList();
 	}
@@ -140,6 +179,11 @@ public class GEHelperPanel extends PluginPanel
 	 */
 	public void refreshPrices()
 	{
+		if (searchPanel != null)
+		{
+			searchPanel.refreshPrices();
+		}
+
 		executor.submit(() ->
 		{
 			try
@@ -250,6 +294,10 @@ public class GEHelperPanel extends PluginPanel
 	public void shutdown()
 	{
 		executor.shutdownNow();
+		if (searchPanel != null)
+		{
+			searchPanel.shutdown();
+		}
 	}
 
 	/**

@@ -8,9 +8,11 @@ import net.runelite.api.GrandExchangeOffer;
 import net.runelite.api.GrandExchangeOfferState;
 import net.runelite.api.events.GrandExchangeOfferChanged;
 import net.runelite.api.events.WidgetLoaded;
+import net.runelite.api.events.ScriptCallbackEvent;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.InterfaceID;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.util.QuantityFormatter;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -62,6 +64,9 @@ public class GEHelperPlugin extends Plugin
 	private GEOfferOverlay geOfferOverlay;
 
 	@Inject
+	private ConfigManager configManager;
+
+	@Inject
 	private ItemManager itemManager;
 
 	private GEHelperPanel panel;
@@ -74,7 +79,7 @@ public class GEHelperPlugin extends Plugin
 		log.info("GE Helper started!");
 
 		// Initialize panel
-		panel = new GEHelperPanel(priceClient, config, itemManager);
+		panel = new GEHelperPanel(priceClient, config, itemManager, configManager);
 
 		// Create navigation button for sidebar
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/ge_icon.png");
@@ -95,6 +100,7 @@ public class GEHelperPlugin extends Plugin
 		{
 			priceClient.fetchItemMapping();
 			priceClient.fetchLatestPrices();
+			priceClient.fetch24hPrices();
 		});
 
 		// Schedule periodic price refresh (every 60 seconds)
@@ -103,6 +109,7 @@ public class GEHelperPlugin extends Plugin
 			try
 			{
 				priceClient.fetchLatestPrices();
+				priceClient.fetch24hPrices();
 				SwingUtilities.invokeLater(() -> panel.refreshPrices());
 			}
 			catch (Exception e)
@@ -172,6 +179,78 @@ public class GEHelperPlugin extends Plugin
 			if (config.showPricesOnOffer())
 			{
 				clientThread.invokeLater(this::addPriceInfoToGE);
+			}
+		}
+	}
+
+	@Subscribe
+	public void onScriptCallbackEvent(ScriptCallbackEvent event)
+	{
+		if ("geBuyExamineText".equals(event.getEventName()) || "geSellExamineText".equals(event.getEventName()))
+		{
+			// 44 is the VarClientInt for GRAND_EXCHANGE_ITEM_ID
+			// 135 was VarPlayer.CURRENT_GE_ITEM (older OSRS fallback)
+			int setupItemId = client.getVarcIntValue(44);
+			if (setupItemId <= 0)
+			{
+				setupItemId = client.getVarpValue(135);
+			}
+
+			if (setupItemId > 0)
+			{
+				PriceData priceData = priceClient.getPrice(setupItemId);
+				TimeseriesEntry ts24h = priceClient.get24hPrice(setupItemId);
+
+				if (priceData != null || ts24h != null)
+				{
+					Object[] stack = client.getObjectStack();
+					int sz = client.getObjectStackSize();
+					String currentText = (String) stack[sz - 1];
+
+					StringBuilder sb = new StringBuilder(currentText);
+
+					if (priceData != null)
+					{
+						if (priceData.getHigh() != null)
+						{
+							sb.append("<br>Wiki Buy: ").append(QuantityFormatter.formatNumber(priceData.getHigh()));
+						}
+						if (priceData.getLow() != null)
+						{
+							if (priceData.getHigh() != null)
+							{
+								sb.append(" / ");
+							}
+							else
+							{
+								sb.append("<br>");
+							}
+							sb.append("Wiki Sell: ").append(QuantityFormatter.formatNumber(priceData.getLow()));
+						}
+					}
+
+					if (ts24h != null)
+					{
+						if (ts24h.getAvgHighPrice() != null)
+						{
+							sb.append("<br>Day High: ").append(QuantityFormatter.formatNumber(ts24h.getAvgHighPrice()));
+						}
+						if (ts24h.getAvgLowPrice() != null)
+						{
+							if (ts24h.getAvgHighPrice() != null)
+							{
+								sb.append(" / ");
+							}
+							else
+							{
+								sb.append("<br>");
+							}
+							sb.append("Day Low: ").append(QuantityFormatter.formatNumber(ts24h.getAvgLowPrice()));
+						}
+					}
+
+					stack[sz - 1] = sb.toString();
+				}
 			}
 		}
 	}

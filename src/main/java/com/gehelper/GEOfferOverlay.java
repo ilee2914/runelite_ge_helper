@@ -10,6 +10,7 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
+import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.QuantityFormatter;
 
 import javax.inject.Inject;
@@ -55,7 +56,7 @@ public class GEOfferOverlay extends Overlay
 			return null;
 		}
 
-		g.setFont(g.getFont().deriveFont(Font.BOLD, 11f));
+		g.setFont(FontManager.getRunescapeSmallFont());
 		FontMetrics fm = g.getFontMetrics();
 
 		// Iterate GE slots and show prices for active offers
@@ -106,8 +107,69 @@ public class GEOfferOverlay extends Overlay
 			}
 		}
 
+		// Check for the offer setup screen
+		Widget setupWindow = client.getWidget(InterfaceID.GRAND_EXCHANGE, 24);
+		if (setupWindow != null && !setupWindow.isHidden())
+		{
+			// 44 is the VarClientInt for GRAND_EXCHANGE_ITEM_ID
+			// 135 was VarPlayer.CURRENT_GE_ITEM (older OSRS fallback)
+			int setupItemId = client.getVarcIntValue(44);
+			if (setupItemId <= 0) {
+				setupItemId = client.getVarpValue(135);
+			}
+			
+			if (setupItemId > 0)
+			{
+				PriceData priceData = priceClient.getPrice(setupItemId);
+				TimeseriesEntry ts24h = priceClient.get24hPrice(setupItemId);
+
+				Rectangle bounds = setupWindow.getBounds();
+				if (bounds != null)
+				{
+					// Draw prices near the top left of the setup window
+					int textY = bounds.y + 50;
+					int textX = bounds.x + 20;
+
+					if (priceData != null)
+					{
+						if (priceData.getHigh() != null)
+						{
+							String buyText = "Buy: " + QuantityFormatter.formatNumber(priceData.getHigh());
+							drawOutlinedText(g, fm, buyText, textX, textY, BUY_COLOR);
+							textY += fm.getHeight() + 1;
+						}
+
+						if (priceData.getLow() != null)
+						{
+							String sellText = "Sell: " + QuantityFormatter.formatNumber(priceData.getLow());
+							drawOutlinedText(g, fm, sellText, textX, textY, SELL_COLOR);
+							textY += fm.getHeight() + 1;
+						}
+					}
+
+					if (ts24h != null)
+					{
+						if (ts24h.getAvgHighPrice() != null)
+						{
+							String dayHighText = "Day High: " + QuantityFormatter.formatNumber(ts24h.getAvgHighPrice());
+							drawOutlinedText(g, fm, dayHighText, textX, textY, BUY_COLOR);
+							textY += fm.getHeight() + 1;
+						}
+						
+						if (ts24h.getAvgLowPrice() != null)
+						{
+							String dayLowText = "Day Low: " + QuantityFormatter.formatNumber(ts24h.getAvgLowPrice());
+							drawOutlinedText(g, fm, dayLowText, textX, textY, SELL_COLOR);
+						}
+					}
+				}
+			}
+		}
+
 		return null;
 	}
+
+
 
 	private void drawOutlinedText(Graphics2D g, FontMetrics fm, String text, int x, int y, Color color)
 	{
