@@ -181,8 +181,21 @@ public class GEHelperPanel extends PluginPanel
 		{
 			try
 			{
-				List<TimeseriesEntry> timeseries = priceClient.fetchTimeseries(itemId, panel.getTimestep());
-				SwingUtilities.invokeLater(() -> panel.updateTimeseries(timeseries));
+				String timeframe = panel.getTimestep();
+				String apiTimestep = "5m"; // Default for 12H and 1D
+				if ("7D".equals(timeframe)) apiTimestep = "1h";
+				else if ("30D".equals(timeframe)) apiTimestep = "6h";
+
+				List<TimeseriesEntry> timeseries = priceClient.fetchTimeseries(itemId, apiTimestep);
+
+				// For 12H, we only want the last 12 hours of data (12 * 60 / 5 = 144 entries)
+				if ("12H".equals(timeframe) && timeseries.size() > 144)
+				{
+					timeseries = timeseries.subList(timeseries.size() - 144, timeseries.size());
+				}
+
+				final List<TimeseriesEntry> finalTimeseries = timeseries;
+				SwingUtilities.invokeLater(() -> panel.updateTimeseries(finalTimeseries));
 			}
 			catch (Exception e)
 			{

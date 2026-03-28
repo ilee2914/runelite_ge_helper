@@ -38,8 +38,8 @@ public class OfferPanel extends JPanel
 	private final JLabel wikiPriceLabel;
 	private final PriceGraphPanel graphPanel;
 
-	private String currentTimestep = "5m";
-	private JLabel label1D, label7D, label30D;
+	private String currentTimestep = "12H";
+	private JLabel label12H, label1D, label7D, label30D;
 
 	public OfferPanel(int itemId, String itemName, boolean isBuy, int totalQuantity, int quantityFilled, int price,
 					  GEHelperConfig config, ItemManager itemManager, Runnable onTimeframeChange)
@@ -130,11 +130,13 @@ public class OfferPanel extends JPanel
 		JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
 		rightHeader.setOpaque(false);
 
-		label1D = createTimeframeLabel("1D", "5m", onTimeframeChange);
-		label7D = createTimeframeLabel("7D", "1h", onTimeframeChange);
-		label30D = createTimeframeLabel("30D", "6h", onTimeframeChange);
+		label12H = createTimeframeLabel("12H", "12H", onTimeframeChange);
+		label1D = createTimeframeLabel("1D", "1D", onTimeframeChange);
+		label7D = createTimeframeLabel("7D", "7D", onTimeframeChange);
+		label30D = createTimeframeLabel("30D", "30D", onTimeframeChange);
 		updateTimeframeLabels();
 
+		rightHeader.add(label12H);
 		rightHeader.add(label1D);
 		rightHeader.add(label7D);
 		rightHeader.add(label30D);
@@ -270,8 +272,9 @@ public class OfferPanel extends JPanel
 
 	private void updateTimeframeLabels()
 	{
-		if (label1D != null) label1D.setForeground("5m".equals(currentTimestep) ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
-		if (label7D != null) label7D.setForeground("1h".equals(currentTimestep) ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
-		if (label30D != null) label30D.setForeground("6h".equals(currentTimestep) ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
+		if (label12H != null) label12H.setForeground("12H".equals(currentTimestep) ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
+		if (label1D != null) label1D.setForeground("1D".equals(currentTimestep) ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
+		if (label7D != null) label7D.setForeground("7D".equals(currentTimestep) ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
+		if (label30D != null) label30D.setForeground("30D".equals(currentTimestep) ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
 	}
 }
