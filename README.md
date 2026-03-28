@@ -23,13 +23,6 @@ A comprehensive Grand Exchange price tracking and monitoring tool for RuneLite, 
 
 Once available on the Plugin Hub, search for **"GE Helper"** and click **Install**.
 
-## For Developers (Local Build)
-
-If you are building from source:
-
-1.  Clone the repository.
-2.  Run `.\gradlew.bat run` to launch RuneLite with the plugin loaded.
-3.  To package for standalone use, run `.\gradlew.bat shadowJar`.
 
 ## License
 
