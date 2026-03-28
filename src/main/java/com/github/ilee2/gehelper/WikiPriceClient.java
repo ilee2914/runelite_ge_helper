@@ -1,4 +1,4 @@
-package com.gehelper;
+package com.github.ilee2.gehelper;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;

@@ -1,4 +1,4 @@
-package com.gehelper;
+package com.github.ilee2.gehelper;
 
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;

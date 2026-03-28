@@ -1,6 +1,6 @@
-package com.gehelper;
+package com.github.ilee2.gehelper;
 
-import com.gehelper.ui.GEHelperPanel;
+import com.github.ilee2.gehelper.ui.GEHelperPanel;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GrandExchangeOffer;

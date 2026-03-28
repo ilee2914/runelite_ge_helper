@@ -1,10 +1,10 @@
-package com.gehelper.ui;
+package com.github.ilee2.gehelper.ui;
 
-import com.gehelper.GEHelperConfig;
-import com.gehelper.ItemMapping;
-import com.gehelper.PriceData;
-import com.gehelper.TimeseriesEntry;
-import com.gehelper.WikiPriceClient;
+import com.github.ilee2.gehelper.GEHelperConfig;
+import com.github.ilee2.gehelper.ItemMapping;
+import com.github.ilee2.gehelper.PriceData;
+import com.github.ilee2.gehelper.TimeseriesEntry;
+import com.github.ilee2.gehelper.WikiPriceClient;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;

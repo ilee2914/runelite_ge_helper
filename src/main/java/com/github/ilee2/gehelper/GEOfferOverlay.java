@@ -1,4 +1,4 @@
-package com.gehelper;
+package com.github.ilee2.gehelper;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;

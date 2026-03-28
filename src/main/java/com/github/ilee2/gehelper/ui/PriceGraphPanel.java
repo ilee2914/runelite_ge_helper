@@ -1,6 +1,6 @@
-package com.gehelper.ui;
+package com.github.ilee2.gehelper.ui;
 
-import com.gehelper.TimeseriesEntry;
+import com.github.ilee2.gehelper.TimeseriesEntry;
 import lombok.Setter;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
