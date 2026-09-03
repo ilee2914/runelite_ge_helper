@@ -89,21 +89,21 @@ public class GEOfferOverlay extends Overlay
 				continue;
 			}
 
-			// Draw price info below each GE slot
-			int textY = bounds.y + bounds.height + 2;
-			int textX = bounds.x + 2;
+			// Draw price info at the top right of each GE slot
+			int textY = bounds.y + fm.getAscent() + 3;
+			int rightEdge = bounds.x + bounds.width - 3;
 
 			if (priceData.getHigh() != null)
 			{
 				String buyText = "Buy: " + QuantityFormatter.formatNumber(priceData.getHigh());
-				drawOutlinedText(g, fm, buyText, textX, textY, BUY_COLOR);
+				drawOutlinedTextRight(g, fm, buyText, rightEdge, textY, BUY_COLOR);
 				textY += fm.getHeight() + 1;
 			}
 
 			if (priceData.getLow() != null)
 			{
 				String sellText = "Sell: " + QuantityFormatter.formatNumber(priceData.getLow());
-				drawOutlinedText(g, fm, sellText, textX, textY, SELL_COLOR);
+				drawOutlinedTextRight(g, fm, sellText, rightEdge, textY, SELL_COLOR);
 			}
 		}
 
@@ -170,6 +170,14 @@ public class GEOfferOverlay extends Overlay
 	}
 
 
+
+	/**
+	 * Draws text so that the right edge of its background box lands on {@code rightEdge}.
+	 */
+	private void drawOutlinedTextRight(Graphics2D g, FontMetrics fm, String text, int rightEdge, int y, Color color)
+	{
+		drawOutlinedText(g, fm, text, rightEdge - fm.stringWidth(text) - 4, y, color);
+	}
 
 	private void drawOutlinedText(Graphics2D g, FontMetrics fm, String text, int x, int y, Color color)
 	{

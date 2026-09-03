@@ -7,3 +7,8 @@ out/
 .DS_Store
 *.class
 *.log
+
+# Local scratch: build logs, Plugin Hub PR working copies
+build_log.txt
+pr_info*.json
+temp-plugin-hub*/

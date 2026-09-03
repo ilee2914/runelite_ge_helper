@@ -64,3 +64,32 @@ tasks.register('shadowJar', Jar) {
 	archiveClassifier.set('all')
 	archiveFileName.set("${rootProject.name}-${project.version}-all.jar")
 }
+
+// Copies the plugin jar into RuneLite's sideload directory so the normally
+// installed client (Jagex Launcher, Steam shortcut, desktop icon) picks it up.
+// The client only scans this directory when started with --developer-mode.
+def sideloadDir = new File(System.getProperty('user.home'), '.runelite/sideloaded-plugins')
+
+tasks.register('installSideload', Copy) {
+	description = "Installs the plugin jar into ${sideloadDir}"
+	group = 'installation'
+
+	from tasks.named('jar')
+	into sideloadDir
+	rename { "${rootProject.name}.jar" }
+
+	doFirst {
+		sideloadDir.mkdirs()
+	}
+	doLast {
+		logger.lifecycle("Installed ${rootProject.name}.jar to ${sideloadDir}")
+		logger.lifecycle("Restart RuneLite to load it (client must run with --developer-mode).")
+	}
+}
+
+tasks.register('uninstallSideload', Delete) {
+	description = "Removes the plugin jar from ${sideloadDir}"
+	group = 'installation'
+
+	delete new File(sideloadDir, "${rootProject.name}.jar")
+}
