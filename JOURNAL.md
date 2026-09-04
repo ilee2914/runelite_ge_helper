@@ -203,3 +203,48 @@ name (rather than guessing from the folder name) keeps the launcher and each pro
 
 Everything else in the script — bootstrap update, classpath cache, JVM args, fallback to the
 stock launcher — is unchanged, and the Steam shortcut still points at the same path.
+
+## 2026-09-04 — High/low markers and per-graph refresh
+
+Two sidebar graph requests: mark the extremes of the visible window, and let a single graph
+be reloaded without re-fetching every graph on the panel.
+
+### High/low lines
+
+`PriceGraphPanel` already scanned the series to find the price range; it now also remembers
+*where* each extreme occurred. The period high is the maximum `avgHighPrice` (top of the
+green instant-buy line) and the period low is the minimum `avgLowPrice` (bottom of the red
+instant-sell line) — so each line marks the extreme of the series it belongs to, not a
+mixed high/low across both.
+
+Each is drawn as a dotted horizontal line (`BasicStroke` with a 3/3 dash) across the plot,
+a 5px dot on the point where it happened, and a value label (`H 1504K` / `L 1340K`) on a
+translucent chip. Labels sit *inside* the plot area — the high one below its line, the low
+one above its — because the plot only pads the range by 5%, so a label outside either line
+would fall off the top or bottom of the component. When both labels would land in the same
+band (a near-flat series) the low one is pinned to the left edge instead.
+
+Config toggle `showHighLowLines` (default on), alongside the existing legend toggle. Like
+the legend it applies when the panel rebuilds, since the plugin has no `ConfigChanged`
+handler.
+
+### Per-graph refresh
+
+Each graph header gained a `⟳` next to the timeframe buttons, in both the Offers and Search
+tabs. It refetches the timeseries for that one item and re-reads its wiki price from the
+shared `/latest` snapshot (cache-aware, so no extra network call unless the 60s snapshot is
+stale). The header's global refresh is unchanged.
+
+For a failure to be visible per graph, `WikiPriceClient#fetchTimeseries` now throws
+`IOException` instead of swallowing the error and returning an empty list — an empty list
+was indistinguishable from an item with no trades, so a failed graph sat on "Loading price
+data..." forever. `PriceGraphPanel` gained explicit `setLoading()` / `setError()` /
+`setNeedsLoad()` states; the error state reads "Failed to load prices / Click refresh to
+retry", and the `⟳` dims while a fetch for that graph is in flight.
+
+Search results past the tenth are not auto-loaded, and their graphs now say "Click refresh
+to load" rather than showing a loading spinner message that never resolves. Their `⟳`
+loads on demand (the panel-click path that pushes an item to the top still works too).
+
+The graph header's `FlowLayout` gap went from 6px to 4px so the extra icon still fits the
+225px sidebar next to `Price History`, the four timeframes and the wiki link.

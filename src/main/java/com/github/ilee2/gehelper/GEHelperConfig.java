@@ -19,6 +19,16 @@ public interface GEHelperConfig extends Config
 
 
 	@ConfigItem(
+		keyName = "showHighLowLines",
+		name = "Show High/Low Lines",
+		description = "Draw dotted lines on each graph at the highest buy and lowest sell price in view"
+	)
+	default boolean showHighLowLines()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "showGraphLegend",
 		name = "Show Graph Legend",
 		description = "Show Buy/Sell legend on each price graph"

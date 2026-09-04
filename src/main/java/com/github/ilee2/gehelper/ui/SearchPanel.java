@@ -322,6 +322,8 @@ public class SearchPanel extends PluginPanel
 					() -> {
 						if (loadData) refreshTimeseries(itemId, panelHolder[0]);
 					},
+					// The refresh button loads on demand, even for rows past the auto-load cut-off
+					() -> refreshItem(itemId, panelHolder[0]),
 					() -> pushToTop(itemId)
 				);
 				SearchItemPanel panel = panelHolder[0];
@@ -396,8 +398,32 @@ public class SearchPanel extends PluginPanel
 		}
 	}
 
+	/**
+	 * Refresh just one search result: its graph and its wiki price.
+	 */
+	private void refreshItem(int itemId, SearchItemPanel panel)
+	{
+		refreshTimeseries(itemId, panel);
+
+		executor.submit(() ->
+		{
+			try
+			{
+				// Cache-aware: only hits the network if the shared price snapshot is stale
+				PriceData pd = priceClient.fetchLatestPrices().get(itemId);
+				SwingUtilities.invokeLater(() -> panel.updateWikiPrice(pd));
+			}
+			catch (Exception e)
+			{
+				log.error("Failed to refresh search price for item {}", itemId, e);
+			}
+		});
+	}
+
 	private void refreshTimeseries(int itemId, SearchItemPanel panel)
 	{
+		SwingUtilities.invokeLater(panel::setGraphLoading);
+
 		executor.submit(() ->
 		{
 			try
@@ -421,6 +447,7 @@ public class SearchPanel extends PluginPanel
 			catch (Exception e)
 			{
 				log.error("Failed to fetch search timeseries for item {}", itemId, e);
+				SwingUtilities.invokeLater(panel::setGraphError);
 			}
 		});
 	}

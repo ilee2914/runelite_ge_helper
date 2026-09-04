@@ -27,14 +27,21 @@ public class PriceGraphPanel extends JPanel
 	private static final int BOTTOM_PADDING = 16; // room for time labels
 	private static final Color BUY_COLOR = new Color(0, 190, 0);
 	private static final Color SELL_COLOR = new Color(220, 60, 60);
+	private static final Color HIGH_LINE_COLOR = new Color(0, 190, 0, 150);
+	private static final Color LOW_LINE_COLOR = new Color(220, 60, 60, 150);
+	private static final Color LABEL_BG_COLOR = new Color(30, 30, 30, 200);
+	private static final Color ERROR_COLOR = new Color(220, 100, 100);
 	private static final Color GRID_COLOR = new Color(60, 60, 60);
 	private static final Color AXIS_COLOR = new Color(180, 180, 180);
+	private static final BasicStroke DASHED_STROKE = new BasicStroke(1f, BasicStroke.CAP_BUTT,
+		BasicStroke.JOIN_MITER, 10f, new float[]{3f, 3f}, 0f);
 	private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 	private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("MMM d");
 	private static final DateTimeFormatter TOOLTIP_TIME_FMT = DateTimeFormatter.ofPattern("MMM d, HH:mm");
 
-	@Setter
 	private List<TimeseriesEntry> data;
+	private boolean error = false;
+	private String placeholder = "Loading price data...";
 
 	@Setter
 	private String itemName = "";
@@ -44,6 +51,9 @@ public class PriceGraphPanel extends JPanel
 
 	@Setter
 	private boolean showTitle = true;
+
+	@Setter
+	private boolean showHighLowLines = true;
 
 	private Point hoveredPoint = null;
 
@@ -75,6 +85,44 @@ public class PriceGraphPanel extends JPanel
 		});
 	}
 
+	/**
+	 * Supply data to plot. Clears any loading or error state.
+	 */
+	public void setData(List<TimeseriesEntry> data)
+	{
+		this.data = data;
+		this.error = false;
+	}
+
+	/**
+	 * Show a placeholder for a graph that has not been fetched yet.
+	 */
+	public void setNeedsLoad()
+	{
+		this.data = null;
+		this.error = false;
+		this.placeholder = "Click refresh to load";
+	}
+
+	/**
+	 * Show the loading placeholder while a fetch is in flight.
+	 */
+	public void setLoading()
+	{
+		this.data = null;
+		this.error = false;
+		this.placeholder = "Loading price data...";
+	}
+
+	/**
+	 * Show a retryable error placeholder after a failed fetch.
+	 */
+	public void setError()
+	{
+		this.data = null;
+		this.error = true;
+	}
+
 	@Override
 	protected void paintComponent(Graphics g)
 	{
@@ -84,13 +132,27 @@ public class PriceGraphPanel extends JPanel
 
 		if (data == null || data.isEmpty())
 		{
-			g2.setColor(ColorScheme.LIGHT_GRAY_COLOR);
 			g2.setFont(FontManager.getRunescapeSmallFont());
-			String msg = data == null ? "Loading price data..." : "No price data available";
 			FontMetrics fm = g2.getFontMetrics();
-			int x = (getWidth() - fm.stringWidth(msg)) / 2;
-			int y = getHeight() / 2;
-			g2.drawString(msg, x, y);
+
+			String[] msgs;
+			if (error)
+			{
+				g2.setColor(ERROR_COLOR);
+				msgs = new String[]{"Failed to load prices", "Click refresh to retry"};
+			}
+			else
+			{
+				g2.setColor(ColorScheme.LIGHT_GRAY_COLOR);
+				msgs = new String[]{data == null ? placeholder : "No price data available"};
+			}
+
+			int y = (getHeight() - msgs.length * fm.getHeight()) / 2 + fm.getAscent();
+			for (String msg : msgs)
+			{
+				g2.drawString(msg, (getWidth() - fm.stringWidth(msg)) / 2, y);
+				y += fm.getHeight();
+			}
 			return;
 		}
 
@@ -115,20 +177,37 @@ public class PriceGraphPanel extends JPanel
 			return;
 		}
 
-		// Find price range
+		// Find price range, tracking where each series peaks and bottoms out
 		long minPrice = Long.MAX_VALUE;
 		long maxPrice = Long.MIN_VALUE;
-		for (TimeseriesEntry entry : data)
+		long periodHigh = Long.MIN_VALUE;
+		long periodLow = Long.MAX_VALUE;
+		int periodHighIdx = -1;
+		int periodLowIdx = -1;
+		for (int i = 0; i < data.size(); i++)
 		{
+			TimeseriesEntry entry = data.get(i);
 			if (entry.getAvgHighPrice() != null)
 			{
-				minPrice = Math.min(minPrice, entry.getAvgHighPrice());
-				maxPrice = Math.max(maxPrice, entry.getAvgHighPrice());
+				long high = entry.getAvgHighPrice();
+				minPrice = Math.min(minPrice, high);
+				maxPrice = Math.max(maxPrice, high);
+				if (high > periodHigh)
+				{
+					periodHigh = high;
+					periodHighIdx = i;
+				}
 			}
 			if (entry.getAvgLowPrice() != null)
 			{
-				minPrice = Math.min(minPrice, entry.getAvgLowPrice());
-				maxPrice = Math.max(maxPrice, entry.getAvgLowPrice());
+				long low = entry.getAvgLowPrice();
+				minPrice = Math.min(minPrice, low);
+				maxPrice = Math.max(maxPrice, low);
+				if (low < periodLow)
+				{
+					periodLow = low;
+					periodLowIdx = i;
+				}
 			}
 		}
 
@@ -168,7 +247,7 @@ public class PriceGraphPanel extends JPanel
 			long firstTs = data.get(0).getTimestamp();
 			long lastTs = data.get(data.size() - 1).getTimestamp();
 			long durationSeconds = lastTs - firstTs;
-			
+
 			// If spanning more than 25 hours, show the date instead of the time to avoid cramping
 			DateTimeFormatter axisTimeFmt = (durationSeconds > 90000) ? DATE_FMT : TIME_FMT;
 
@@ -197,6 +276,13 @@ public class PriceGraphPanel extends JPanel
 		// Draw sell price line (low = instant sell)
 		drawLine(g2, data, false, graphX, graphY, graphW, graphH, minPrice, priceRange, SELL_COLOR);
 
+		// Dotted markers at the period high and low
+		if (showHighLowLines)
+		{
+			drawHighLowLines(g2, fm, graphX, graphY, graphW, graphH, minPrice, priceRange,
+				periodHigh, periodHighIdx, periodLow, periodLowIdx);
+		}
+
 		// Optional legend (config-controlled)
 		if (showLegend)
 		{
@@ -223,6 +309,7 @@ public class PriceGraphPanel extends JPanel
 				int pointX = graphX + (int) ((double) closestIdx / (data.size() - 1) * graphW);
 
 				// Draw vertical bar marker
+				g2.setStroke(new BasicStroke(1f));
 				g2.setColor(new Color(255, 255, 255, 60));
 				g2.drawLine(pointX, graphY, pointX, graphY + graphH);
 
@@ -274,6 +361,96 @@ public class PriceGraphPanel extends JPanel
 		}
 	}
 
+	/**
+	 * Draw dotted horizontal lines at the highest buy price and lowest sell price in view,
+	 * with a labelled dot on the point where each occurred.
+	 */
+	private void drawHighLowLines(Graphics2D g2, FontMetrics fm,
+								  int graphX, int graphY, int graphW, int graphH,
+								  long minPrice, long priceRange,
+								  long periodHigh, int periodHighIdx,
+								  long periodLow, int periodLowIdx)
+	{
+		int highY = periodHighIdx >= 0 ? priceToY(periodHigh, graphY, graphH, minPrice, priceRange) : -1;
+		int lowY = periodLowIdx >= 0 ? priceToY(periodLow, graphY, graphH, minPrice, priceRange) : -1;
+
+		// If the two labels would sit on top of each other, pin the low one to the left edge
+		boolean labelsCollide = highY >= 0 && lowY >= 0 && Math.abs(lowY - highY) < fm.getHeight() * 2;
+
+		Stroke oldStroke = g2.getStroke();
+		g2.setStroke(DASHED_STROKE);
+
+		if (highY >= 0)
+		{
+			g2.setColor(HIGH_LINE_COLOR);
+			g2.drawLine(graphX, highY, graphX + graphW, highY);
+		}
+		if (lowY >= 0)
+		{
+			g2.setColor(LOW_LINE_COLOR);
+			g2.drawLine(graphX, lowY, graphX + graphW, lowY);
+		}
+
+		g2.setStroke(oldStroke);
+
+		// Dots on the points where the extremes occurred
+		if (highY >= 0)
+		{
+			g2.setColor(BUY_COLOR);
+			g2.fillOval(indexToX(periodHighIdx, graphX, graphW) - 2, highY - 2, 5, 5);
+		}
+		if (lowY >= 0)
+		{
+			g2.setColor(SELL_COLOR);
+			g2.fillOval(indexToX(periodLowIdx, graphX, graphW) - 2, lowY - 2, 5, 5);
+		}
+
+		// Labels stay inside the plot area: high below its line, low above its line
+		if (highY >= 0)
+		{
+			drawValueLabel(g2, fm, "H " + formatPrice(periodHigh), BUY_COLOR,
+				graphX, graphY, graphW, graphH, highY + fm.getAscent() + 2, true);
+		}
+		if (lowY >= 0)
+		{
+			drawValueLabel(g2, fm, "L " + formatPrice(periodLow), SELL_COLOR,
+				graphX, graphY, graphW, graphH, lowY - 3, !labelsCollide);
+		}
+	}
+
+	/**
+	 * Draw a small value label on a dark chip, clamped inside the plot area.
+	 */
+	private void drawValueLabel(Graphics2D g2, FontMetrics fm, String text, Color color,
+								int graphX, int graphY, int graphW, int graphH,
+								int baselineY, boolean rightAligned)
+	{
+		int textW = fm.stringWidth(text);
+		int textX = rightAligned ? graphX + graphW - textW - 2 : graphX + 2;
+
+		baselineY = Math.max(graphY + fm.getAscent(), Math.min(baselineY, graphY + graphH - 1));
+
+		g2.setColor(LABEL_BG_COLOR);
+		g2.fillRect(textX - 2, baselineY - fm.getAscent(), textW + 4, fm.getAscent() + 2);
+
+		g2.setColor(color);
+		g2.drawString(text, textX, baselineY);
+	}
+
+	private int priceToY(long price, int graphY, int graphH, long minPrice, long priceRange)
+	{
+		return graphY + graphH - (int) Math.round((double) (price - minPrice) / priceRange * graphH);
+	}
+
+	private int indexToX(int index, int graphX, int graphW)
+	{
+		if (data.size() <= 1)
+		{
+			return graphX;
+		}
+		return graphX + (int) Math.round((double) index / (data.size() - 1) * graphW);
+	}
+
 	private void drawLine(Graphics2D g2, List<TimeseriesEntry> entries, boolean isHigh,
 						  int graphX, int graphY, int graphW, int graphH,
 						  long minPrice, long priceRange, Color color)
@@ -289,7 +466,9 @@ public class PriceGraphPanel extends JPanel
 				continue;
 			}
 
-			double x = graphX + (double) i / (entries.size() - 1) * graphW;
+			double x = entries.size() > 1
+				? graphX + (double) i / (entries.size() - 1) * graphW
+				: graphX;
 			double y = graphY + graphH - ((double) (price - minPrice) / priceRange * graphH);
 
 			if (!started)

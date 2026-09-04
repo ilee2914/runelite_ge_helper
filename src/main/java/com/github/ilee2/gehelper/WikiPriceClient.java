@@ -3,6 +3,7 @@ package com.github.ilee2.gehelper;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -195,35 +196,38 @@ public class WikiPriceClient
 	 *
 	 * @param itemId the item ID
 	 * @param timestep one of "5m", "1h", "6h", "24h"
-	 * @return list of timeseries entries, or empty list on failure
+	 * @return list of timeseries entries, empty if the item genuinely has no trades
+	 * @throws IOException if the request failed, so callers can offer a retry
 	 */
-	public List<TimeseriesEntry> fetchTimeseries(int itemId, String timestep)
+	public List<TimeseriesEntry> fetchTimeseries(int itemId, String timestep) throws IOException
 	{
+		String url = BASE_URL + "/timeseries?timestep=" + timestep + "&id=" + itemId;
+		String json = doGet(url);
+		if (json == null)
+		{
+			throw new IOException("No response for timeseries of item " + itemId);
+		}
+
+		JsonObject root;
+		JsonElement dataElement;
 		try
 		{
-			String url = BASE_URL + "/timeseries?timestep=" + timestep + "&id=" + itemId;
-			String json = doGet(url);
-			if (json == null)
-			{
-				return Collections.emptyList();
-			}
-
-			JsonObject root = gson.fromJson(json, JsonObject.class);
-			JsonElement dataElement = root.get("data");
-			if (dataElement == null)
-			{
-				return Collections.emptyList();
-			}
-
-			Type listType = new TypeToken<List<TimeseriesEntry>>(){}.getType();
-			List<TimeseriesEntry> entries = gson.fromJson(dataElement, listType);
-			return entries != null ? entries : Collections.emptyList();
+			root = gson.fromJson(json, JsonObject.class);
+			dataElement = root != null ? root.get("data") : null;
 		}
-		catch (Exception e)
+		catch (JsonSyntaxException e)
 		{
-			log.error("Failed to fetch timeseries for item {}", itemId, e);
-			return Collections.emptyList();
+			throw new IOException("Malformed timeseries response for item " + itemId, e);
 		}
+
+		if (dataElement == null)
+		{
+			throw new IOException("Malformed timeseries response for item " + itemId);
+		}
+
+		Type listType = new TypeToken<List<TimeseriesEntry>>(){}.getType();
+		List<TimeseriesEntry> entries = gson.fromJson(dataElement, listType);
+		return entries != null ? entries : Collections.emptyList();
 	}
 
 	/**

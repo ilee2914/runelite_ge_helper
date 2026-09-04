@@ -37,12 +37,14 @@ public class OfferPanel extends JPanel
 	private final JLabel priceLabel;
 	private final JLabel wikiPriceLabel;
 	private final PriceGraphPanel graphPanel;
+	private final JLabel refreshLabel;
 
 	private String currentTimestep = "12H";
 	private JLabel label12H, label1D, label7D, label30D;
 
 	public OfferPanel(int itemId, String itemName, boolean isBuy, int totalQuantity, int quantityFilled, int price,
-					  GEHelperConfig config, ItemManager itemManager, Runnable onTimeframeChange)
+					  GEHelperConfig config, ItemManager itemManager, Runnable onTimeframeChange,
+					  Runnable onRefresh)
 	{
 		this.itemId = itemId;
 		this.itemName = itemName;
@@ -127,7 +129,7 @@ public class OfferPanel extends JPanel
 		priceHistoryLabel.setFont(FontManager.getRunescapeSmallFont());
 		graphHeader.add(priceHistoryLabel, BorderLayout.WEST);
 
-		JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+		JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
 		rightHeader.setOpaque(false);
 
 		label12H = createTimeframeLabel("12H", "12H", onTimeframeChange);
@@ -140,6 +142,9 @@ public class OfferPanel extends JPanel
 		rightHeader.add(label1D);
 		rightHeader.add(label7D);
 		rightHeader.add(label30D);
+
+		refreshLabel = createRefreshLabel(onRefresh);
+		rightHeader.add(refreshLabel);
 
 		JLabel wikiLink = new JLabel("<html><u>Wiki</u></html>");
 		wikiLink.setForeground(new Color(100, 149, 237));
@@ -160,6 +165,7 @@ public class OfferPanel extends JPanel
 		graphPanel = new PriceGraphPanel();
 		graphPanel.setShowTitle(false);
 		graphPanel.setShowLegend(config.showGraphLegend());
+		graphPanel.setShowHighLowLines(config.showHighLowLines());
 		graphPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
 		// Main content layout
@@ -230,8 +236,62 @@ public class OfferPanel extends JPanel
 
 	public void updateTimeseries(List<TimeseriesEntry> timeseries)
 	{
+		refreshLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		graphPanel.setData(timeseries);
 		graphPanel.repaint();
+	}
+
+	/**
+	 * Put this graph into its loading state while a fetch for it is in flight.
+	 */
+	public void setGraphLoading()
+	{
+		refreshLabel.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
+		graphPanel.setLoading();
+		graphPanel.repaint();
+	}
+
+	/**
+	 * Put this graph into its error state so the user can retry just this one.
+	 */
+	public void setGraphError()
+	{
+		refreshLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		graphPanel.setError();
+		graphPanel.repaint();
+	}
+
+	private JLabel createRefreshLabel(Runnable onRefresh)
+	{
+		JLabel label = new JLabel("⟳");
+		label.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		label.setFont(label.getFont().deriveFont(13f));
+		label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		label.setToolTipText("Refresh this graph");
+		label.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				if (onRefresh != null)
+				{
+					onRefresh.run();
+				}
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e)
+			{
+				label.setForeground(Color.WHITE);
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e)
+			{
+				label.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+			}
+		});
+		return label;
 	}
 
 	public String getTimestep()
